@@ -7,7 +7,7 @@
 - `checklist/` 每日打卡与周复盘记录表
 - `notes/` 学习笔记（按阶段/主题组织）
 - `sql/` SQL 练习与优化案例
-- `scripts/` Shell/Python 脚本
+- `scripts/` Shell/Python 脚本（按学习日分 `dayXX/` 子目录，每目录自带配套 `test.log`，进入目录即可独立运行）
 - `projects/` 各阶段项目（离线数仓、实时指标等）
 - `modeling/` 建模图与设计文档
 - `architecture/` 架构方案
