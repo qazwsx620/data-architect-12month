@@ -1,7 +1,7 @@
-# Day40 · 数仓基础：分层与建模（ODS/DWD/DWS/ADS / 事实表维度表 / 星型雪花）
+# Day40 · 数仓基础：概念、分层与维度建模（ODS/DWD/DWS/ADS / ETL / 事实维度表 / 星型雪花 / SCD / 粒度）
 
-> 模块三 · 数仓基础 Day1 | 配套脚本见 `scripts/day40/` 目录，虚拟机 MySQL 实测通过。
-> 背景：数仓分层与维度建模是数据开发岗位面试必背理论。
+> 模块三 · 数仓基础 Day1（计划表合并原Day40/41）| 配套脚本见 `scripts/day40/` 目录，虚拟机 MySQL 实测通过。
+> 背景：数仓分层与维度建模是数据开发岗位面试必背理论。本次为合并版，含 ETL/SCD/粒度/事实表分类补充。
 
 ---
 
@@ -19,7 +19,67 @@
 
 **为什么要分层**：①结构清晰 ②数据可追溯 ③复用计算（DWS 一次加工多处用）④隔离变更（底层变了不影响上层）。
 
-## 2. 四层建表（MySQL 实操）
+## 2. ETL 流程（面试必答）
+
+**ETL = Extract 抽取 / Transform 转换 / Load 加载**
+- **E 抽取**：从业务库/日志/文件拉取数据
+- **T 转换**：清洗、去重、格式统一、计算加工
+- **L 加载**：写入目标（数仓各层/报表库）
+
+> 数仓分层的数据流转就是靠 ETL 作业逐层驱动（Day42 实战完整实现）。
+
+## 3. 事实表 & 维度表
+
+| | 事实表 | 维度表 |
+|--|--------|--------|
+| 内容 | 数字指标（金额/数量） | 描述属性（名称/城市） |
+| 特点 | 不断增长 | 相对稳定 |
+| 键 | 外键引用维度表 | 主键 |
+
+## 4. 粒度（事实表设计第一要务）
+
+**粒度 = 一行记录代表什么级别的业务**，设计表前必须先定：
+- 订单事实表：粒度 = 每笔订单一行
+- DWS 汇总表：粒度 = 每用户每天一行
+
+> 粒度决定分析粗细，粒度定错整张表重做。
+
+## 5. 维度建模：星型 vs 雪花
+
+- **星型**：1 事实表 + N 维度表**直接连接**（维度不细分）→ 少 join、查询快，**90% 场景首选**
+- **雪花**：维度表**再细分**多级（城市→省份→国家）→ 规范化省空间，但多 join、查询慢
+
+```sql
+-- 星型模型：2 维度表 + 1 事实表
+CREATE TABLE dim_user (user_id BIGINT PRIMARY KEY, user_name VARCHAR(50), city VARCHAR(50));
+CREATE TABLE dim_product (product_id BIGINT PRIMARY KEY, product_name VARCHAR(100), category VARCHAR(50));
+CREATE TABLE fact_order (
+    order_id BIGINT PRIMARY KEY, user_id BIGINT, product_id BIGINT,
+    amount DECIMAL(10,2), create_time DATETIME,
+    FOREIGN KEY (user_id) REFERENCES dim_user(user_id),
+    FOREIGN KEY (product_id) REFERENCES dim_product(product_id)
+);
+```
+
+## 6. SCD 缓慢变化维（维度属性随时间变化）
+
+用户从南昌搬到上海，三种处理策略：
+
+| 策略 | 做法 | 特点 |
+|------|------|------|
+| SCD1 | 直接覆盖旧值 | 不保留历史，简单 |
+| SCD2 | 新增一行保留历史（加生效时间） | 保留完整历史，常用 |
+| SCD3 | 加一列存旧值 | 只留上一版 |
+
+## 7. 事实表分类
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| 事务事实表 | 每笔业务一行，不断增长 | 订单表 |
+| 周期快照事实表 | 定期记录某时刻状态 | 每日账户余额 |
+| 累积快照事实表 | 记录流程多阶段时间点 | 订单从下单→支付→发货→完成 |
+
+## 8. 四层建表（MySQL 实操）
 
 ```sql
 -- ODS：原样存
@@ -47,39 +107,18 @@ CREATE TABLE ads_user_report (
 );
 ```
 
-## 3. 事实表 & 维度表
-
-| | 事实表 | 维度表 |
-|--|--------|--------|
-| 内容 | 数字指标（金额/数量） | 描述属性（名称/城市） |
-| 特点 | 不断增长 | 相对稳定 |
-| 键 | 外键引用维度表 | 主键 |
-
-## 4. 维度建模：星型 vs 雪花
-
-- **星型**：1 事实表 + N 维度表**直接连接**（维度不细分）→ 少 join、查询快，**90% 场景首选**
-- **雪花**：维度表**再细分**多级（城市→省份→国家）→ 规范化省空间，但多 join、查询慢
-
-```sql
--- 星型模型：2 维度表 + 1 事实表
-CREATE TABLE dim_user (user_id BIGINT PRIMARY KEY, user_name VARCHAR(50), city VARCHAR(50));
-CREATE TABLE dim_product (product_id BIGINT PRIMARY KEY, product_name VARCHAR(100), category VARCHAR(50));
-CREATE TABLE fact_order (
-    order_id BIGINT PRIMARY KEY, user_id BIGINT, product_id BIGINT,
-    amount DECIMAL(10,2), create_time DATETIME,
-    FOREIGN KEY (user_id) REFERENCES dim_user(user_id),
-    FOREIGN KEY (product_id) REFERENCES dim_product(product_id)
-);
-```
-
 ---
 
 ## 今日面试考点清单
 1. 四层职责？→ 原始/明细/汇总/应用
 2. 数据流向？→ 业务库→ODS→DWD→DWS→ADS
-3. 事实表 vs 维度表？→ 数字指标增长 / 描述属性稳定
-4. 星型 vs 雪花？→ 维度直连 vs 维度细分
-5. 为什么要分层？→ 清晰/追溯/复用/隔离
+3. ETL 是什么？→ 抽取/转换/加载
+4. 事实表 vs 维度表？→ 数字指标增长 / 描述属性稳定
+5. 粒度是什么？→ 一行代表的业务级别，先定粒度再设计
+6. 星型 vs 雪花？→ 维度直连 vs 维度细分
+7. SCD？→ SCD1覆盖/SCD2新增行/SCD3加列
+8. 事实表分类？→ 事务/周期快照/累积快照
+9. 为什么要分层？→ 清晰/追溯/复用/隔离
 
 ## 踩坑记录（面试素材）
 - ODS 就做清洗 → 违背"原样存储"，源头必须留底
@@ -87,3 +126,5 @@ CREATE TABLE fact_order (
 - 事实表存描述字段 → 描述放维度表，事实表只放指标+外键
 - 雪花模型滥用 → 查询慢，小维度直接星型
 - 分层跳级 → 必须层层加工，不能 ODS 直接出 ADS
+- 忘掉 SCD → 维度变化直接覆盖丢历史，面试要能说出三种策略
+- 粒度没定就建表 → 分析需求一变整表重做
