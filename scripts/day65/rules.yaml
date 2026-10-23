@@ -1,0 +1,7 @@
+# Day65 实操①：规则配置（质量规则平台化）——改规则只改这里，不改代码
+rules:
+  - {table: dwd_order_detail, column: order_id, rule: unique,        threshold: 0}
+  - {table: dwd_order_detail, column: amount,   rule: non_negative,  threshold: 0}
+  - {table: dwd_order_detail, column: amount,   rule: not_null_rate, threshold: 0.99}
+  - {table: ods_order,        column: order_id, rule: unique,        threshold: 0}
+  - {table: ads_gmv_report,   column: gmv,      rule: non_negative,  threshold: 0}
