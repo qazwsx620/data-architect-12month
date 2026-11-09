@@ -1,0 +1,36 @@
+# Day95 实操：质量平台雏形——规则库（配置化）
+# 用法：quality_engine_v2.py 读取本文件，逐条执行 sql，与 threshold 比较判定 PASS/FAIL
+# 字段：rule_id 唯一 / table / level(P0阻断,P1告警,P2提示) / type / sql / op / threshold
+
+rules:
+  - rule_id: R001
+    table: dwd_order_detail
+    level: P1
+    type: completeness
+    sql: "SELECT COUNT(*) FROM dwd_order_detail WHERE order_id IS NULL OR amount IS NULL"
+    op: "<="
+    threshold: 0
+
+  - rule_id: R002
+    table: dwd_order_detail
+    level: P0
+    type: uniqueness
+    sql: "SELECT COUNT(*) - COUNT(DISTINCT order_id) FROM dwd_order_detail WHERE order_date='2026-10-13'"
+    op: "<="
+    threshold: 0
+
+  - rule_id: R003
+    table: ads_gmv_report
+    level: P1
+    type: accuracy
+    sql: "SELECT COUNT(*) FROM ads_gmv_report WHERE gmv < 0"
+    op: "<="
+    threshold: 0
+
+  - rule_id: R004
+    table: ads_gmv_report
+    level: P1
+    type: timeliness
+    sql: "SELECT COUNT(*) FROM ads_gmv_report WHERE stat_date = CURDATE() - INTERVAL 1 DAY"
+    op: ">="
+    threshold: 1
